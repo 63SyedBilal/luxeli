@@ -19,6 +19,7 @@ export interface MemberData {
   email: string;
   phone: string;
   username: string;
+  profileImage?: string;
   permissions: string[];
   role: 'member';
   createdAt: string;
@@ -169,9 +170,11 @@ export async function loginSuperAdmin(email: string, password: string): Promise<
  */
 export function logoutUser(): void {
   clearAuthData();
-  // Redirect to login page
   if (typeof window !== 'undefined') {
-    window.location.href = '/login';
+    // Clear httpOnly cookie on server
+    fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+      window.location.href = '/login';
+    });
   }
 }
 

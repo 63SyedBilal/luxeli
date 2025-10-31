@@ -149,3 +149,5 @@ The sidebar icons should now change color on focus!
 // Uncomment the line below to run the test automatically
 // testSidebarIconColorFix();
 
+
+
