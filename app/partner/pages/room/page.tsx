@@ -71,8 +71,21 @@ export default function RoomPage() {
   const [roomForQR, setRoomForQR] = useState<Room | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [roomToAssign, setRoomToAssign] = useState<Room | null>(null)
+  // Assign room form state
+  const [assignResident, setAssignResident] = useState("")
+  const [assignCheckInDate, setAssignCheckInDate] = useState("")
+  const [assignCheckInTime, setAssignCheckInTime] = useState("")
+  const [assignCheckOutDate, setAssignCheckOutDate] = useState("")
+  const [assignCheckOutTime, setAssignCheckOutTime] = useState("")
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [roomForHistory, setRoomForHistory] = useState<Room | null>(null)
+  const [roomHistory, setRoomHistory] = useState<RoomHistoryEntry[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [historySearchQuery, setHistorySearchQuery] = useState("")
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1)
+  const [historyItemsPerPage] = useState(20)
   const [showAddModal, setShowAddModal] = useState(false)
   // Two-step add room flow
   const [showAddStepOne, setShowAddStepOne] = useState(false)
@@ -273,12 +286,25 @@ export default function RoomPage() {
 
   const handleAssignRoom = (room: Room) => {
     setRoomToAssign(room)
+    // Pre-fill form with existing data if room is already assigned
+    setAssignResident(room.resident || "")
+    setAssignCheckInDate(room.checkIn ? room.checkIn.split(',')[0] : "")
+    setAssignCheckInTime(room.checkIn ? room.checkIn.split(',')[1]?.trim() || "" : "")
+    setAssignCheckOutDate(room.checkOut ? room.checkOut.split(',')[0] : "")
+    setAssignCheckOutTime(room.checkOut ? room.checkOut.split(',')[1]?.trim() || "" : "")
+    setAssignError(null)
     setShowAssignModal(true)
   }
 
   const closeAssignModal = () => {
     setShowAssignModal(false)
     setRoomToAssign(null)
+    setAssignResident("")
+    setAssignCheckInDate("")
+    setAssignCheckInTime("")
+    setAssignCheckOutDate("")
+    setAssignCheckOutTime("")
+    setAssignError(null)
   }
 
   const handleUnassignRoom = (room: Room) => {
@@ -287,22 +313,163 @@ export default function RoomPage() {
     // You can implement actual unassignment functionality here
   }
 
-  const handleSaveAssignment = () => {
-    // Handle room assignment save logic here
-    console.log("Saving room assignment for:", roomToAssign?.roomNumber)
-    setShowAssignModal(false)
-    setRoomToAssign(null)
+  const handleSaveAssignment = async () => {
+    if (!roomToAssign) return
+
+    // Validate required fields
+    if (!assignResident.trim()) {
+      setAssignError("Resident name is required")
+      return
+    }
+
+    setIsAssigning(true)
+    setAssignError(null)
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        setAssignError("Authentication token not found. Please log in again.")
+        setIsAssigning(false)
+        return
+      }
+
+      const response = await fetch(`/api/partner/rooms/${roomToAssign.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          resident: assignResident.trim(),
+          checkInDate: assignCheckInDate || undefined, // HTML date input already returns ISO format (YYYY-MM-DD)
+          checkInTime: assignCheckInTime || null,
+          checkOutDate: assignCheckOutDate || null,
+          checkOutTime: assignCheckOutTime || null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to assign room')
+      }
+
+      // Refresh rooms list
+      await fetchRooms()
+
+      // Close modal
+      closeAssignModal()
+    } catch (err: any) {
+      console.error('Error assigning room:', err)
+      setAssignError(err.message || 'Failed to assign room. Please try again.')
+    } finally {
+      setIsAssigning(false)
+    }
   }
 
-  const handleRoomHistory = (room: Room) => {
+  const handleRoomHistory = async (room: Room) => {
     setRoomForHistory(room)
     setShowHistoryModal(true)
+    await fetchRoomHistory(room.id)
   }
 
   const closeHistoryModal = () => {
     setShowHistoryModal(false)
     setRoomForHistory(null)
+    setRoomHistory([])
+    setHistorySearchQuery("")
+    setHistoryCurrentPage(1)
   }
+
+  // Fetch room history (currently shows current assignment, can be extended for full history)
+  const fetchRoomHistory = async (roomId: string) => {
+    try {
+      setIsLoadingHistory(true)
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        setIsLoadingHistory(false)
+        return
+      }
+
+      // Fetch the current room data
+      const response = await fetch(`/api/partner/rooms/${roomId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.room) {
+          const room = result.room
+          
+          // Format dates for display
+          const formatDate = (date: Date | string | null) => {
+            if (!date) return "N/A"
+            const d = new Date(date)
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            const month = months[d.getMonth()]
+            const day = d.getDate()
+            const year = d.getFullYear()
+            return `${month} ${day}, ${year}`
+          }
+
+          const formatDateTime = (date: Date | string | null, time: string | null) => {
+            if (!date) return "N/A"
+            const dateStr = formatDate(date)
+            if (time) {
+              // Format time (e.g., "10:30" -> "10:30 AM")
+              const [hours, minutes] = time.split(':')
+              const hour = parseInt(hours)
+              const ampm = hour >= 12 ? 'PM' : 'AM'
+              const displayHour = hour % 12 || 12
+              return `${dateStr}, ${displayHour}:${minutes} ${ampm}`
+            }
+            return dateStr
+          }
+
+          // Create history entry from current room assignment
+          const history: RoomHistoryEntry[] = []
+          
+          // Only add entry if room has a resident assigned
+          if (room.resident && room.roomStatus === 'full') {
+            history.push({
+              id: room._id || room.id || '1',
+              name: room.resident,
+              checkIn: formatDateTime(room.checkInDate, room.checkInTime),
+              checkOut: formatDateTime(room.checkOutDate, room.checkOutTime),
+            })
+          }
+
+          setRoomHistory(history)
+        } else {
+          setRoomHistory([])
+        }
+      } else {
+        console.error('Failed to fetch room history')
+        setRoomHistory([])
+      }
+    } catch (error) {
+      console.error('Error fetching room history:', error)
+      setRoomHistory([])
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
+  // Filter history based on search query
+  const filteredHistory = roomHistory.filter(entry => 
+    entry.name.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+    entry.checkIn.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+    entry.checkOut.toLowerCase().includes(historySearchQuery.toLowerCase())
+  )
+
+  // Paginate filtered history
+  const historyStartIndex = (historyCurrentPage - 1) * historyItemsPerPage
+  const historyEndIndex = historyStartIndex + historyItemsPerPage
+  const paginatedHistory = filteredHistory.slice(historyStartIndex, historyEndIndex)
+  const historyTotalPages = Math.ceil(filteredHistory.length / historyItemsPerPage)
 
   const handleAddRoom = () => {
     setNewRoomName("")
@@ -1403,6 +1570,13 @@ export default function RoomPage() {
               </button>
             </div>
 
+            {/* Error Message */}
+            {assignError && (
+              <div className="mx-4 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {assignError}
+              </div>
+            )}
+
             {/* Input Section */}
             <div
               className="flex flex-col border-b"
@@ -1461,8 +1635,10 @@ export default function RoomPage() {
                     </label>
                     <input
                       type="text"
-                      defaultValue={roomToAssign?.roomNumber}
-                      className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={roomToAssign?.roomNumber || ""}
+                      readOnly
+                      disabled
+                      className="w-full border rounded bg-gray-50 cursor-not-allowed"
                       style={{
                         width: "326px",
                         height: "35.040000915527344px",
@@ -1501,6 +1677,8 @@ export default function RoomPage() {
                     </label>
                     <input
                       type="text"
+                      value={assignResident}
+                      onChange={(e) => setAssignResident(e.target.value)}
                       placeholder="Write Here..."
                       className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                       style={{
@@ -1552,8 +1730,9 @@ export default function RoomPage() {
                       Check in
                     </label>
                     <input
-                      type="text"
-                      placeholder="mm/dd/yyyy"
+                      type="date"
+                      value={assignCheckInDate}
+                      onChange={(e) => setAssignCheckInDate(e.target.value)}
                       className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                       style={{
                         width: "326px",
@@ -1593,8 +1772,9 @@ export default function RoomPage() {
                       Check in
                     </label>
                     <input
-                      type="text"
-                      defaultValue="00:00 AM"
+                      type="time"
+                      value={assignCheckInTime}
+                      onChange={(e) => setAssignCheckInTime(e.target.value)}
                       className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                       style={{
                         width: "326px",
@@ -1645,8 +1825,9 @@ export default function RoomPage() {
                       Check out
                     </label>
                     <input
-                      type="text"
-                      placeholder="mm/dd/yyyy"
+                      type="date"
+                      value={assignCheckOutDate}
+                      onChange={(e) => setAssignCheckOutDate(e.target.value)}
                       className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                       style={{
                         width: "326px",
@@ -1686,8 +1867,9 @@ export default function RoomPage() {
                       Check out
                     </label>
                     <input
-                      type="text"
-                      defaultValue="00:00 AM"
+                      type="time"
+                      value={assignCheckOutTime}
+                      onChange={(e) => setAssignCheckOutTime(e.target.value)}
                       className="w-full border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                       style={{
                         width: "326px",
@@ -1760,7 +1942,8 @@ export default function RoomPage() {
                 {/* Save Button */}
                 <button
                   onClick={handleSaveAssignment}
-                  className="flex items-center justify-center text-white rounded"
+                  disabled={isAssigning || !assignResident.trim()}
+                  className="flex items-center justify-center text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     width: "72px",
                     height: "37.040000915527344px",
@@ -1774,7 +1957,7 @@ export default function RoomPage() {
                     opacity: 1,
                   }}
                 >
-                  Save
+                  {isAssigning ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
@@ -1789,7 +1972,12 @@ export default function RoomPage() {
             {/* Header */}
             <div className=" border-gray-200 flex-shrink-0">
               <div className="pt-5 pb-5 pr-6 pl-6 flex items-center justify-between border-b">
-                <h2 className="text-xl font-semibold text-black">Room History</h2>
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-semibold text-black">Room History</h2>
+                  {roomForHistory && (
+                    <p className="text-sm text-gray-500 mt-1">Room: {roomForHistory.roomNumber}</p>
+                  )}
+                </div>
                 <button 
                   onClick={closeHistoryModal}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -1811,7 +1999,7 @@ export default function RoomPage() {
                 }}
               >
                 <p className="text-sm text-gray-600">
-                  Found {mockRoomHistory.length} resident
+                  Found {filteredHistory.length} resident{filteredHistory.length !== 1 ? 's' : ''}
                 </p>
                 
                 {/* Search Bar and Icon */}
@@ -1826,6 +2014,11 @@ export default function RoomPage() {
                 >
                   <input
                     type="text"
+                    value={historySearchQuery}
+                    onChange={(e) => {
+                      setHistorySearchQuery(e.target.value)
+                      setHistoryCurrentPage(1) // Reset to first page on search
+                    }}
                     placeholder="Search..."
                     className="border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                     style={{
@@ -1852,11 +2045,28 @@ export default function RoomPage() {
 
             {/* Room History Cards - Scrollable */}
             <div className="flex-1 p-6 overflow-y-auto">
-              <div 
-                className="grid gap-4"
-                style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
-              >
-                {mockRoomHistory.slice(0, 20).map((history) => (
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : paginatedHistory.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-32 h-32 mb-4 opacity-50">
+                    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="40" y="60" width="120" height="80" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
+                      <path d="M60 100L100 130L140 100" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <p className="text-muted-foreground">
+                    {historySearchQuery ? 'No residents found matching your search' : 'No room assignment history available'}
+                  </p>
+                </div>
+              ) : (
+                <div 
+                  className="grid gap-4"
+                  style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+                >
+                  {paginatedHistory.map((history) => (
                   <div
                     key={history.id}
                     className="bg-white rounded-lg border flex flex-col"
@@ -1923,20 +2133,48 @@ export default function RoomPage() {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Fixed Pagination at Bottom */}
-            <div className="p-6 border-t border-gray-200 flex-shrink-0">
-              <div className="flex items-center justify-end gap-2">
-                <button className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100">‹</button>
-                <button className="w-8 h-8 rounded-full text-sm font-medium bg-primary text-white">1</button>
-                <button className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100">2</button>
-                <button className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100">3</button>
-                <button className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100">›</button>
+            {filteredHistory.length > 0 && historyTotalPages > 1 && (
+              <div className="p-6 border-t border-gray-200 flex-shrink-0">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setHistoryCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={historyCurrentPage === 1}
+                    className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ‹
+                  </button>
+                  {Array.from({ length: Math.min(3, historyTotalPages) }, (_, i) => {
+                    const page = i + 1
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setHistoryCurrentPage(page)}
+                        className={`w-8 h-8 rounded-full text-sm font-medium ${
+                          historyCurrentPage === page
+                            ? 'bg-primary text-white'
+                            : 'text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  })}
+                  <button
+                    onClick={() => setHistoryCurrentPage(p => Math.min(historyTotalPages, p + 1))}
+                    disabled={historyCurrentPage === historyTotalPages}
+                    className="w-8 h-8 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
            </div>
          </div>
        )}

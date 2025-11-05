@@ -30,6 +30,23 @@ export class RoomController {
   }
 
   /**
+   * Get a single room by ID
+   */
+  static async getRoomById(id: string) {
+    try {
+      await connectDB();
+
+      const room = await Room.findById(id).lean();
+      if (!room) {
+        return NextResponse.json({ error: 'Room not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, room });
+    } catch (error: any) {
+      return handleApiError(error, 'Failed to fetch room');
+    }
+  }
+
+  /**
    * Create a new room
    */
   static async createRoom(body: {
