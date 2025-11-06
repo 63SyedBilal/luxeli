@@ -87,6 +87,9 @@ export default function RoomPage() {
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1)
   const [historyItemsPerPage] = useState(20)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showUnassignModal, setShowUnassignModal] = useState(false)
+  const [roomToUnassign, setRoomToUnassign] = useState<Room | null>(null)
+  const [isUnassigning, setIsUnassigning] = useState(false)
   // Two-step add room flow
   const [showAddStepOne, setShowAddStepOne] = useState(false)
   const [newRoomName, setNewRoomName] = useState("")
@@ -229,29 +232,32 @@ export default function RoomPage() {
 
   const handleEditRoom = (room: Room) => {
     setSelectedRoom(room)
-    // Pre-fill fields using the same inputs as Add modal
+    // Pre-fill only room name
     setNewRoomName(room.roomNumber)
-    setNewRoomStatus(room.status === "Occupied" ? "Full" : "Empty")
     setShowEditModal(true)
   }
 
   const handleSaveEdit = async () => {
     if (!selectedRoom) return
+    if (!newRoomName.trim()) {
+      alert("Please enter a room name")
+      return
+    }
     try {
       const token = getAuthToken()
       if (!token) {
         alert('Please log in to edit room')
         return
       }
-      const response = await fetch(`/api/partner/rooms/${selectedRoom.id}`, {
+      const response = await fetch(`/api/partner/rooms/update-by-name`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          originalRoomName: selectedRoom.roomNumber, // Use room name instead of ID
           roomName: newRoomName.trim(),
-          roomStatus: newRoomStatus.toLowerCase(),
         })
       })
       const result = await response.json()
@@ -259,6 +265,7 @@ export default function RoomPage() {
         await fetchRooms()
         setShowEditModal(false)
         setSelectedRoom(null)
+        setNewRoomName("")
       } else {
         alert(result.error || 'Failed to update room')
       }
@@ -308,9 +315,55 @@ export default function RoomPage() {
   }
 
   const handleUnassignRoom = (room: Room) => {
-    // Handle room unassignment logic here
-    console.log("Unassigning room:", room.roomNumber)
-    // You can implement actual unassignment functionality here
+    if (!room.resident) {
+      alert('Room is not currently assigned')
+      return
+    }
+    setRoomToUnassign(room)
+    setShowUnassignModal(true)
+  }
+
+  const closeUnassignModal = () => {
+    setShowUnassignModal(false)
+    setRoomToUnassign(null)
+    setIsUnassigning(false)
+  }
+
+  const confirmUnassign = async () => {
+    if (!roomToUnassign) return
+
+    setIsUnassigning(true)
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        alert('Please log in to unassign room')
+        setIsUnassigning(false)
+        return
+      }
+
+      const response = await fetch(`/api/partner/rooms/${roomToUnassign.id}/unassign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        await fetchRooms()
+        closeUnassignModal()
+        alert('Room unassigned successfully. Previous assignment saved to history.')
+      } else {
+        alert(result.error || 'Failed to unassign room')
+        setIsUnassigning(false)
+      }
+    } catch (error) {
+      console.error('Error unassigning room:', error)
+      alert('Failed to unassign room. Please try again.')
+      setIsUnassigning(false)
+    }
   }
 
   const handleSaveAssignment = async () => {
@@ -381,7 +434,7 @@ export default function RoomPage() {
     setHistoryCurrentPage(1)
   }
 
-  // Fetch room history (currently shows current assignment, can be extended for full history)
+  // Fetch room history from history API
   const fetchRoomHistory = async (roomId: string) => {
     try {
       setIsLoadingHistory(true)
@@ -392,8 +445,8 @@ export default function RoomPage() {
         return
       }
 
-      // Fetch the current room data
-      const response = await fetch(`/api/partner/rooms/${roomId}`, {
+      // Fetch room history
+      const response = await fetch(`/api/partner/rooms/${roomId}/history`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -401,9 +454,7 @@ export default function RoomPage() {
 
       if (response.ok) {
         const result = await response.json()
-        if (result.success && result.room) {
-          const room = result.room
-          
+        if (result.success && result.history) {
           // Format dates for display
           const formatDate = (date: Date | string | null) => {
             if (!date) return "N/A"
@@ -429,18 +480,13 @@ export default function RoomPage() {
             return dateStr
           }
 
-          // Create history entry from current room assignment
-          const history: RoomHistoryEntry[] = []
-          
-          // Only add entry if room has a resident assigned
-          if (room.resident && room.roomStatus === 'full') {
-            history.push({
-              id: room._id || room.id || '1',
-              name: room.resident,
-              checkIn: formatDateTime(room.checkInDate, room.checkInTime),
-              checkOut: formatDateTime(room.checkOutDate, room.checkOutTime),
-            })
-          }
+          // Map history entries to RoomHistoryEntry format
+          const history: RoomHistoryEntry[] = result.history.map((entry: any) => ({
+            id: entry._id || entry.id || '',
+            name: entry.resident,
+            checkIn: formatDateTime(entry.checkInDate, entry.checkInTime),
+            checkOut: formatDateTime(entry.checkOutDate, entry.checkOutTime),
+          }))
 
           setRoomHistory(history)
         } else {
@@ -638,19 +684,21 @@ export default function RoomPage() {
     title, 
     onClose, 
     onSave, 
-    children 
+    children,
+    width = "50vw"
   }: { 
     isOpen: boolean
     title: string
     onClose: () => void
     onSave: () => void
     children: React.ReactNode
+    width?: string
   }) => {
     if (!isOpen) return null
 
     return (
       <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}>
-        <div className="bg-white rounded-xl w-[50vw] mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-xl mx-4 max-h-[90vh] overflow-y-auto" style={{ width }}>
           {/* Header */}
           <div className="flex justify-between items-center border-b p-5 rounded-t-xl bg-white">
             <div className="flex flex-col gap-2">
@@ -1207,58 +1255,28 @@ export default function RoomPage() {
         </div>
       </div>
 
-      {/* Edit Room Modal - reuse the same modal UI as Add Room */}
+      {/* Edit Room Modal - only room name */}
       <RoomModal
         isOpen={showEditModal}
         title="Edit Room"
-        onClose={() => { setShowEditModal(false); setSelectedRoom(null) }}
+        width="480px"
+        onClose={() => { 
+          setShowEditModal(false)
+          setSelectedRoom(null)
+          setNewRoomName("")
+        }}
         onSave={handleSaveEdit}
       >
-        <div className="flex flex-col gap-2">
+        {/* Room name only */}
+        <div className="col-span-2 flex flex-col gap-2">
           <label className="text-sm font-medium text-gray-700">Room name</label>
           <input
             type="text"
             placeholder="Write Here..."
             value={newRoomName}
             onChange={(e) => setNewRoomName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Status</label>
-          <select 
-            value={newRoomStatus}
-            onChange={(e) => setNewRoomStatus(e.target.value as "Full" | "Empty")}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="Full">Full</option>
-            <option value="Empty">Empty</option>
-          </select>
-        </div>
-        <div className="col-span-2 flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">The resident</label>
-          <input
-            type="text"
-            placeholder="Write Here..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            defaultValue={selectedRoom?.resident || ""}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Check in</label>
-          <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Check in</label>
-          <input type="time" defaultValue="00:00" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Check out</label>
-          <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Check out</label>
-          <input type="time" defaultValue="00:00" className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
       </RoomModal>
 
@@ -1355,9 +1373,99 @@ export default function RoomPage() {
                  </button>
                </div>
              </div>
-           </div>
-         </div>
-       )}
+          </div>
+        </div>
+      )}
+
+      {/* Unassign Room Modal */}
+      {showUnassignModal && roomToUnassign && (
+        <div className="fixed inset-0 bg-black/40 bg-opacity-80 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}>
+          <div 
+            className="bg-white rounded-lg w-full max-w-md mx-4"
+            style={{
+              border: "1px solid #56C6FF",
+              borderRadius: "10px"
+            }}
+          >
+            {/* Header */}
+            <div 
+              className="flex justify-between items-center px-6 py-4"
+              style={{
+                borderBottom: "1px dashed rgba(0, 0, 0, 0.1)"
+              }}
+            >
+              <h2 
+                className="text-black font-bold text-xl"
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 700
+                }}
+              >
+                Unassign room
+              </h2>
+              <button
+                onClick={closeUnassignModal}
+                className="text-gray-500 hover:text-gray-700 transition-colors p-1"
+                disabled={isUnassigning}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6">
+              <p 
+                className="text-gray-700 text-base leading-relaxed"
+                style={{
+                  color: "#212121",
+                  fontSize: "16px",
+                  fontWeight: 400,
+                  lineHeight: "24px"
+                }}
+              >
+                You're about to unassign Room <span className="font-semibold">{roomToUnassign.roomNumber}</span> from <span className="font-semibold">{roomToUnassign.resident}</span>. The room will return to Vacant and remain available for other guests.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div 
+              className="flex justify-end items-center gap-3 px-6 py-4"
+              style={{
+                borderTop: "1px solid rgba(0, 0, 0, 0.04)"
+              }}
+            >
+              <button
+                onClick={closeUnassignModal}
+                disabled={isUnassigning}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: "#FBFAFA",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  fontWeight: 500
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmUnassign}
+                disabled={isUnassigning}
+                className="px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: "#1F2A44",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  fontWeight: 500
+                }}
+              >
+                {isUnassigning ? "Unassigning..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Room QR Code Modal */}
       {showQRModal && roomForQR && (
@@ -2209,7 +2317,7 @@ export default function RoomPage() {
                      placeholder="Write Here..."
                      value={newRoomName}
                      onChange={(e) => setNewRoomName(e.target.value)}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                    />
                  </div>
                  
@@ -2219,7 +2327,7 @@ export default function RoomPage() {
                    <select 
                      value={newRoomStatus}
                      onChange={(e) => setNewRoomStatus(e.target.value as "Full" | "Empty")}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                    >
                      <option value="Empty">Empty</option>
                      <option value="Full">Full</option>
@@ -2284,7 +2392,7 @@ export default function RoomPage() {
              placeholder="Write Here..."
              value={newRoomName}
              onChange={(e) => setNewRoomName(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
          <div className="flex flex-col gap-2">
@@ -2292,7 +2400,7 @@ export default function RoomPage() {
            <select 
              value={newRoomStatus}
              onChange={(e) => setNewRoomStatus(e.target.value as "Full" | "Empty")}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            >
              <option value="Full">Full</option>
              <option value="Empty">Empty</option>
@@ -2307,7 +2415,7 @@ export default function RoomPage() {
              placeholder="Write Here..."
              value={newResident}
              onChange={(e) => setNewResident(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
 
@@ -2318,7 +2426,7 @@ export default function RoomPage() {
              type="date"
              value={newCheckInDate}
              onChange={(e) => setNewCheckInDate(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
          <div className="flex flex-col gap-2">
@@ -2327,7 +2435,7 @@ export default function RoomPage() {
              type="time"
              value={newCheckInTime}
              onChange={(e) => setNewCheckInTime(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
 
@@ -2338,7 +2446,7 @@ export default function RoomPage() {
              type="date"
              value={newCheckOutDate}
              onChange={(e) => setNewCheckOutDate(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
          <div className="flex flex-col gap-2">
@@ -2347,7 +2455,7 @@ export default function RoomPage() {
              type="time"
              value={newCheckOutTime}
              onChange={(e) => setNewCheckOutTime(e.target.value)}
-             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
            />
          </div>
        </RoomModal>

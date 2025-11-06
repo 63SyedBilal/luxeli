@@ -87,3 +87,4 @@ export const BookingSettings = mongoose.model<IBookingSettings>(
 
 export default BookingSettings;
 
+

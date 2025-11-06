@@ -69,3 +69,4 @@ export const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
 
 export default Ticket;
 
+
