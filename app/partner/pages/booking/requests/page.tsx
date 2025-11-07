@@ -7,20 +7,261 @@ import PublicIcon from "@/app/partner/components/public-icon"
 import { LeftArrow, RightArrow } from "@/app/superadmin/components/pagination-arrows"
 import ViewBookingModal from "@/app/partner/components/view-booking-modal"
 import AssignStaffModal from "@/app/partner/components/assign-staff-modal"
+import { getAuthToken } from "@/lib/auth-utils"
+
+interface BookingInternRequest {
+  _id: string
+  roomName: string
+  residentEmail: string
+  category: "spa/clubs" | "restaurant"
+  status: "new" | "accepted" | "completed" | "no-show" | "canceled"
+  assignee?: {
+    name: string
+    staffId: string
+    profilePic?: string
+  }
+  reservation: {
+    date: string
+    time: string
+  }
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
 
 export default function BookingRequestsPage() {
   const router = useRouter()
   const [showDropdown, setShowDropdown] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = 3
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
   const [showViewRequest, setShowViewRequest] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [showAssignStaffModal, setShowAssignStaffModal] = useState(false)
   const [requestToAssign, setRequestToAssign] = useState<any>(null)
+  const [requests, setRequests] = useState<BookingInternRequest[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
 
-  const handleAssignStaff = (staffId: string) => {
-    console.log("Assigned staff:", staffId, "to request:", requestToAssign)
-    // Handle the assignment logic here
+  // Fetch requests from API
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true)
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        setIsLoading(false)
+        return
+      }
+
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      })
+      
+      if (searchQuery) queryParams.append('search', searchQuery)
+      if (statusFilter) queryParams.append('status', statusFilter.toLowerCase())
+      if (categoryFilter) {
+        // Map UI category to API category
+        let apiCategory = categoryFilter.toLowerCase()
+        if (categoryFilter === "Clubs" || categoryFilter === "SPA") {
+          apiCategory = "spa/clubs"
+        }
+        queryParams.append('category', apiCategory)
+      }
+
+      const response = await fetch(`/api/partner/booking-intern-requests?${queryParams}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await response.json()
+
+      if (data.success && data.data?.requests) {
+        setRequests(data.data.requests)
+        if (data.data.pagination) {
+          setTotalItems(data.data.pagination.total)
+          setTotalPages(data.data.pagination.pages)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching booking intern requests:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, itemsPerPage, searchQuery, statusFilter, categoryFilter])
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      const month = months[date.getMonth()]
+      const day = date.getDate()
+      const hours = date.getHours()
+      const minutes = date.getMinutes()
+      const ampm = hours >= 12 ? 'PM' : 'AM'
+      const displayHours = hours % 12 || 12
+      const displayMinutes = minutes.toString().padStart(2, '0')
+      return `${month} ${day}, ${displayHours}:${displayMinutes} ${ampm}`
+    } catch {
+      return dateString
+    }
+  }
+
+  // Get status colors
+  const getStatusColors = (status: string) => {
+    switch (status) {
+      case "new":
+        return {
+          bg: "#D1924F0D",
+          border: "#D1924F40",
+          color: "#D1924F"
+        }
+      case "accepted":
+        return {
+          bg: "#6457D30D",
+          border: "#6457D340",
+          color: "#6457D3"
+        }
+      case "completed":
+        return {
+          bg: "#17B26A0D",
+          border: "#17B26A40",
+          color: "#17B26A"
+        }
+      case "no-show":
+        return {
+          bg: "#1F2A440D",
+          border: "#1F2A4440",
+          color: "#1F2A44"
+        }
+      case "canceled":
+        return {
+          bg: "#FF0D0D0D",
+          border: "#FF0D0D40",
+          color: "#FF0D0D"
+        }
+      default:
+        return {
+          bg: "#1F2A440D",
+          border: "#1F2A4440",
+          color: "#1F2A44"
+        }
+    }
+  }
+
+  // Format category for display
+  const formatCategory = (category: string) => {
+    if (category === "spa/clubs") return "SPA/Clubs"
+    return category.charAt(0).toUpperCase() + category.slice(1)
+  }
+
+  // Handle assign staff - wrapper to match AssignStaffModal signature
+  const handleAssignStaff = async (staffId: string) => {
+    try {
+      if (!requestToAssign) return
+
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
+
+      // Fetch staff details to get name and profilePic
+      // For now, we'll use a placeholder name. In a real app, you'd fetch from /api/partner/staff/[id]
+      const response = await fetch(`/api/partner/booking-intern-requests/${requestToAssign._id}/assignee`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assignee: {
+            name: `Staff ${staffId}`, // Placeholder - in real app, fetch from staff API
+            staffId: staffId,
+            profilePic: undefined
+          }
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        await fetchRequests()
+        setShowAssignStaffModal(false)
+        setRequestToAssign(null)
+      } else {
+        console.error('Failed to assign staff:', data.error)
+      }
+    } catch (error) {
+      console.error('Error assigning staff:', error)
+    }
+  }
+
+  // Handle status change
+  const handleStatusChange = async (requestId: string, newStatus: string) => {
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
+
+      const response = await fetch(`/api/partner/booking-intern-requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        await fetchRequests()
+      } else {
+        console.error('Failed to update status:', data.error)
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+    }
+  }
+
+  // Handle delete
+  const handleDelete = async (requestId: string) => {
+    if (!confirm('Are you sure you want to delete this request?')) return
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        return
+      }
+
+      const response = await fetch(`/api/partner/booking-intern-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        await fetchRequests()
+      } else {
+        console.error('Failed to delete request:', data.error)
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error)
+    }
   }
 
   // Close dropdown when clicking outside
@@ -94,6 +335,11 @@ export default function BookingRequestsPage() {
               {/* Display dropdown */}
               <div className="relative">
                 <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value))
+                    setCurrentPage(1)
+                  }}
                   className="appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                   style={{
                     padding: "7.52px 12px",
@@ -120,6 +366,11 @@ export default function BookingRequestsPage() {
               <input 
                 type="text" 
                 placeholder="Search..." 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentPage(1)
+                }}
                 style={{
                   padding: "7.52px 12px",
                   borderRadius: "4px",
@@ -136,6 +387,11 @@ export default function BookingRequestsPage() {
               {/* Status dropdown */}
               <div className="relative inline-block">
                 <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value)
+                    setCurrentPage(1)
+                  }}
                   className="appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                   style={{
                     padding: "7.52px 12px",
@@ -151,21 +407,26 @@ export default function BookingRequestsPage() {
                     minWidth: "90px"
                   }}
                 >
-                  <option>Status</option>
-                  <option>New</option>
-                  <option>Accepted</option>
-                  <option>Completed</option>
-                  <option>Pending</option>
-                  <option>Canceled</option>
+                  <option value="">Status</option>
+                  <option value="new">New</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="completed">Completed</option>
+                  <option value="no-show">No Show</option>
+                  <option value="canceled">Canceled</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <RiArrowDownSLine className="w-4 h-4 text-gray-400" />
                 </div>
               </div>
               
-              {/* Type dropdown */}
+              {/* Category dropdown */}
               <div className="relative inline-block">
                 <select
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value)
+                    setCurrentPage(1)
+                  }}
                   className="appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                   style={{
                     padding: "7.52px 12px",
@@ -181,10 +442,9 @@ export default function BookingRequestsPage() {
                     minWidth: "120px"
                   }}
                 >
-                  <option>Type</option>
-                  <option>Clubs</option>
-                  <option>SPA</option>
-                  <option>Restaurant</option>
+                  <option value="">Category</option>
+                  <option value="spa/clubs">SPA/Clubs</option>
+                  <option value="restaurant">Restaurant</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <RiArrowDownSLine className="w-4 h-4 text-gray-400" />
@@ -291,181 +551,24 @@ export default function BookingRequestsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {/* Sample data rows */}
-              {[
-                {
-                  id: "#22232",
-                  requestId: "#22232",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "Clubs",
-                  created: "Jan 15, 10:30 AM",
-                  status: "new",
-                  statusBg: "#D1924F0D",
-                  statusBorder: "#D1924F40",
-                  statusColor: "#D1924F",
-                  assignee: "",
-                  hasAssignee: false,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Kayaking Adventure",
-                  location: "Lake Resort",
-                  price: "20$",
-                  note: "Please pay special attention to the bathroom area."
-                },
-                {
-                  id: "#22233",
-                  requestId: "#22233",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "SPA",
-                  created: "Jan 15, 10:30 AM",
-                  status: "accepted",
-                  statusBg: "#6457D30D",
-                  statusBorder: "#6457D340",
-                  statusColor: "#6457D3",
-                  assignee: "",
-                  hasAssignee: false,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Relaxing Massage",
-                  location: "SPA Center",
-                  price: "50$",
-                  note: "Deep tissue massage requested."
-                },
-                {
-                  id: "#22234",
-                  requestId: "#22234",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "SPA",
-                  created: "Jan 15, 10:30 AM",
-                  status: "pending",
-                  statusBg: "#1F2A440D",
-                  statusBorder: "#1F2A4440",
-                  statusColor: "#1F2A44",
-                  assignee: "",
-                  hasAssignee: false,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Facial Treatment",
-                  location: "SPA Center",
-                  price: "35$",
-                  note: "Sensitive skin treatment needed."
-                },
-                {
-                  id: "#22235",
-                  requestId: "#22235",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "SPA",
-                  created: "Jan 15, 10:30 AM",
-                  status: "completed",
-                  statusBg: "#17B26A0D",
-                  statusBorder: "#17B26A40",
-                  statusColor: "#17B26A",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Aromatherapy Session",
-                  location: "SPA Center",
-                  price: "40$",
-                  note: "Lavender essential oil preferred."
-                },
-                {
-                  id: "#22236",
-                  requestId: "#22236",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "SPA",
-                  created: "Jan 15, 10:30 AM",
-                  status: "completed",
-                  statusBg: "#17B26A0D",
-                  statusBorder: "#17B26A40",
-                  statusColor: "#17B26A",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Hot Stone Therapy",
-                  location: "SPA Center",
-                  price: "60$",
-                  note: "Extra hot stones for deep relaxation."
-                },
-                {
-                  id: "#22237",
-                  requestId: "#22237",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "SPA",
-                  created: "Jan 15, 10:30 AM",
-                  status: "canceled",
-                  statusBg: "#FF0D0D0D",
-                  statusBorder: "#FF0D0D40",
-                  statusColor: "#FF0D0D",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Body Scrub",
-                  location: "SPA Center",
-                  price: "45$",
-                  note: "Customer cancelled due to schedule conflict."
-                },
-                {
-                  id: "#22238",
-                  requestId: "#22238",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "Restaurant",
-                  created: "Jan 15, 10:30 AM",
-                  status: "completed",
-                  statusBg: "#17B26A0D",
-                  statusBorder: "#17B26A40",
-                  statusColor: "#17B26A",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Room Service Dinner",
-                  location: "Restaurant",
-                  price: "25$",
-                  note: "Vegetarian meal with no onions."
-                },
-                {
-                  id: "#22239",
-                  requestId: "#22239",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "Restaurant",
-                  created: "Jan 15, 10:30 AM",
-                  status: "completed",
-                  statusBg: "#17B26A0D",
-                  statusBorder: "#17B26A40",
-                  statusColor: "#17B26A",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Breakfast in Bed",
-                  location: "Restaurant",
-                  price: "18$",
-                  note: "Fresh orange juice and croissants."
-                },
-                {
-                  id: "#22240",
-                  requestId: "#22240",
-                  room: "R1 E3 A3",
-                  guest: "Lindsey Stroud",
-                  category: "Restaurant",
-                  created: "Jan 15, 10:30 AM",
-                  status: "completed",
-                  statusBg: "#17B26A0D",
-                  statusBorder: "#17B26A40",
-                  statusColor: "#17B26A",
-                  assignee: "Full Name",
-                  hasAssignee: true,
-                  requestedFor: "Today 14:00-16:00",
-                  serviceName: "Wine Tasting",
-                  location: "Restaurant",
-                  price: "30$",
-                  note: "Local wines with cheese pairing."
-                }
-              ].map((row, index) => (
-                <tr key={index} className="hover:bg-muted/50 transition-colors">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    Loading...
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    No requests found
+                  </td>
+                </tr>
+              ) : (
+                requests.map((request, index) => {
+                  const statusColors = getStatusColors(request.status)
+                  const shortId = request._id.substring(request._id.length - 6).toUpperCase()
+                  return (
+                <tr key={request._id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-4">
                     <input type="checkbox" className="rounded" />
                   </td>
@@ -474,31 +577,31 @@ export default function BookingRequestsPage() {
                     fontSize: "12px",
                     fontWeight: "400",
                     lineHeight: "19.5px"
-                  }}>{row.id}</td>
+                  }}>#{shortId}</td>
                   <td className="px-4 py-4" style={{
                     color: "#525866",
                     fontSize: "12px",
                     fontWeight: "400",
                     lineHeight: "19.5px"
-                  }}>{row.room}</td>
+                  }}>{request.roomName}</td>
                   <td className="px-4 py-4" style={{
                     color: "#525866",
                     fontSize: "12px",
                     fontWeight: "400",
                     lineHeight: "19.5px"
-                  }}>{row.guest}</td>
+                  }}>{request.residentEmail}</td>
                   <td className="px-4 py-4" style={{
                     color: "#525866",
                     fontSize: "12px",
                     fontWeight: "400",
                     lineHeight: "19.5px"
-                  }}>{row.category}</td>
+                  }}>{formatCategory(request.category)}</td>
                   <td className="px-4 py-4" style={{
                     color: "#525866",
                     fontSize: "12px",
                     fontWeight: "400",
                     lineHeight: "19.5px"
-                  }}>{row.created}</td>
+                  }}>{formatDate(request.createdAt)}</td>
                   <td className="px-4 py-4">
                     <span 
                       className="inline-flex items-center justify-center text-xs font-medium capitalize"
@@ -509,12 +612,12 @@ export default function BookingRequestsPage() {
                         borderRadius: "4px",
                         borderWidth: "0.5px",
                         padding: "10px",
-                        background: row.statusBg,
-                        border: `0.5px solid ${row.statusBorder}`,
-                        color: row.statusColor
+                        background: statusColors.bg,
+                        border: `0.5px solid ${statusColors.border}`,
+                        color: statusColors.color
                       }}
                     >
-                      {row.status}
+                      {request.status}
                     </span>
                   </td>
                   <td className="px-4 py-4" style={{
@@ -523,10 +626,14 @@ export default function BookingRequestsPage() {
                     fontWeight: "400",
                     lineHeight: "19.5px"
                   }}>
-                    {row.hasAssignee ? (
+                    {request.assignee ? (
                       <div className="flex items-center gap-2">
+                        {request.assignee.profilePic ? (
+                          <img src={request.assignee.profilePic} alt={request.assignee.name} className="w-6 h-6 rounded-full" />
+                        ) : (
                         <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
-                        {row.assignee}
+                        )}
+                        {request.assignee.name}
                       </div>
                     ) : (
                       "-"
@@ -550,7 +657,7 @@ export default function BookingRequestsPage() {
                             <button 
                               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               onClick={() => {
-                                setSelectedRequest(row)
+                                setSelectedRequest(request)
                                 setShowViewRequest(true)
                                 setShowDropdown(null)
                               }}
@@ -561,13 +668,16 @@ export default function BookingRequestsPage() {
                               </svg>
                               View request
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left">
+                            <button 
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              onClick={() => {
+                                const newStatus = prompt('Enter new status (new, accepted, completed, no-show, canceled):')
+                                if (newStatus && ['new', 'accepted', 'completed', 'no-show', 'canceled'].includes(newStatus.toLowerCase())) {
+                                  handleStatusChange(request._id, newStatus.toLowerCase())
+                                }
+                                setShowDropdown(null)
+                              }}
+                            >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 16 17">
                                 <g clipPath="url(#clip0_1_12740)">
                                   <path d="M2.66699 12.4827C2.66699 12.8364 2.80747 13.1755 3.05752 13.4256C3.30756 13.6756 3.6467 13.8161 4.00033 13.8161C4.35395 13.8161 4.69309 13.6756 4.94313 13.4256C5.19318 13.1755 5.33366 12.8364 5.33366 12.4827C5.33366 12.1291 5.19318 11.79 4.94313 11.5399C4.69309 11.2899 4.35395 11.1494 4.00033 11.1494C3.6467 11.1494 3.30756 11.2899 3.05752 11.5399C2.80747 11.79 2.66699 12.1291 2.66699 12.4827Z" stroke="#2B2829" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round"/>
@@ -586,7 +696,7 @@ export default function BookingRequestsPage() {
                             <button 
                               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               onClick={() => {
-                                setRequestToAssign(row)
+                                setRequestToAssign(request)
                                 setShowAssignStaffModal(true)
                                 setShowDropdown(null)
                               }}
@@ -599,7 +709,13 @@ export default function BookingRequestsPage() {
                               </svg>
                               Assign to staff
                             </button>
-                            <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left">
+                            <button 
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                              onClick={() => {
+                                handleDelete(request._id)
+                                setShowDropdown(null)
+                              }}
+                            >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
@@ -611,7 +727,9 @@ export default function BookingRequestsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                  )
+                })
+              )}
             </tbody>
             </table>
           </div>
@@ -619,7 +737,7 @@ export default function BookingRequestsPage() {
           {/* Pagination */}
           <div className="flex items-center justify-between py-3 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Displaying {((currentPage - 1) * 10) + 1}-{Math.min(currentPage * 10, 30)} results out of 30
+              Displaying {totalItems === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} results out of {totalItems}
             </p>
 
             <div className="flex items-center gap-2">
@@ -631,7 +749,7 @@ export default function BookingRequestsPage() {
                 <LeftArrow />
               </button>
 
-              {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 const page = i + 1
                 return (
                   <button

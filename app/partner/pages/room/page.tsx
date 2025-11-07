@@ -8,12 +8,14 @@ import {
   RiHotelBedLine,
   RiUserLine,
   RiDownloadLine,
+  RiDashboard2Fill,
 } from "react-icons/ri"
 import PublicIcon from "@/app/partner/components/public-icon"
 import DropdownMenu from "@/app/superadmin/components/dropdown-menu"
 import StatCard from "@/app/superadmin/components/stat-card"
 import { LeftArrow, RightArrow } from "@/app/superadmin/components/pagination-arrows"
 import { getAuthToken } from "@/lib/auth-utils"
+import { QRCodeCanvas } from "qrcode.react";
 
 interface Room {
   id: string
@@ -286,10 +288,17 @@ export default function RoomPage() {
   }
 
   const handleDownloadQR = () => {
-    // Handle QR code download logic here
-    console.log("Download QR code for room:", roomForQR?.roomNumber)
-    // You can implement actual download functionality here
-  }
+    const canvas = document.getElementById("room-qr");
+    const pngUrl = canvas
+      .toDataURL("image/png")
+      .replace("image/png", "image/octet-stream");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `${roomForQR.roomName || "room"}_QR.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
 
   const handleAssignRoom = (room: Room) => {
     setRoomToAssign(room)
@@ -640,22 +649,22 @@ export default function RoomPage() {
   const fullRoomsCount = rooms.filter(r => r.status === 'Occupied').length
   const emptyRoomsCount = rooms.filter(r => r.status === 'Available').length
 
-  const getStatusStyle = (status: Room["status"]) => {
-    switch (status) {
-      case "Available":
-        return {
-          border: "0.5px solid rgba(80, 190, 135, 0.25)",
-          background: "#EEF9F3",
-          color: "#50BE87",
-        }
-      case "Occupied":
-        return {
-          border: "0.5px solid rgba(255, 13, 13, 0.25)",
-          background: "rgba(255, 13, 13, 0.05)",
-          color: "#FF0D0D",
-        }
-    }
-  }
+  // const getStatusStyle = (status: Room["status"]) => {
+  //   switch (status) {
+  //     case "Available":
+  //       return {
+  //         border: "0.5px solid rgba(80, 190, 135, 0.25)",
+  //         background: "#EEF9F3",
+  //         color: "#50BE87",
+  //       }
+  //     case "Occupied":
+  //       return {
+  //         border: "0.5px solid rgba(255, 13, 13, 0.25)",
+  //         background: "rgba(255, 13, 13, 0.05)",
+  //         color: "#FF0D0D",
+  //       }
+  //   }
+  // }
 
   const getNewStatusStyle = (status: Room["status"]) => {
     if (status === "Occupied") {
@@ -1469,142 +1478,42 @@ export default function RoomPage() {
 
       {/* Room QR Code Modal */}
       {showQRModal && roomForQR && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}
-        >
+        <div className="fixed inset-0 bg-black/40 bg-opacity-80 flex items-center justify-center z-50 " style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}>
+          <div className="bg-white rounded-lg  flex flex-col rounded-xl w-[500px] min-w-md items-center h-[350px]">
+
           <div
-            className="bg-white flex flex-col items-center"
-            style={{
-              width: "500px",
-              height: "451.0395202636719px",
-              top: "286px",
-              left: "470px",
-              borderRadius: "10px",
-              paddingTop: "30px",
-              paddingBottom: "30px",
-              gap: "30px",
-              opacity: 1,
-            }}
-          >
-            {/* Heading Section */}
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: "500px",
-                height: "32px",
-                paddingRight: "20px",
-                paddingLeft: "20px",
-                gap: "10px",
-                opacity: 1,
-              }}
-            >
-              <h2 className="text-lg font-semibold text-black">Room QR code</h2>
-            </div>
+        className="flex items-center justify-center "
+        style={{
+          width: "300px",
+          height: "300px",
+          opacity: 1,
+        }}
+      >
+        {/* Real QR Code */}
+        <QRCodeCanvas
+          id="room-qr"
+          value={JSON.stringify({
+            id: roomForQR?._id,
+            roomNumber: roomForQR?.roomNumber,
+            roomName: roomForQR?.roomName,
+            residentEmail: roomForQR?.residentEmail,
+            checkIn: roomForQR?.checkIn,
+            checkOut: roomForQR?.checkOut,
+          })}
+          size={190}
+          bgColor="#ffffff"
+          fgColor="#000000"
+          level="H"
+          includeMargin={true}
+        />
+         </div>
+         <div className="w-full">
 
-            {/* QR Code Section */}
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: "231.99978637695312px",
-                height: "231.99951171875px",
-                opacity: 1,
-              }}
-            >
-              {/* QR Code Pattern */}
-              <div
-                className="bg-black"
-                style={{
-                  width: "189.7466583251953px",
-                  height: "189.7452850341797px",
-                  marginTop: "20.82px",
-                  marginLeft: "21.14px",
-                  opacity: 1,
-                  // Simple QR code pattern representation
-                  backgroundImage: `
-                    linear-gradient(90deg, transparent 0%, transparent 10%, black 10%, black 20%, transparent 20%, transparent 30%, black 30%, black 40%, transparent 40%, transparent 50%, black 50%, black 60%, transparent 60%, transparent 70%, black 70%, black 80%, transparent 80%, transparent 90%, black 90%, black 100%),
-                    linear-gradient(0deg, transparent 0%, transparent 10%, black 10%, black 20%, transparent 20%, transparent 30%, black 30%, black 40%, transparent 40%, transparent 50%, black 50%, black 60%, transparent 60%, transparent 70%, black 70%, black 80%, transparent 80%, transparent 90%, black 90%, black 100%)
-                  `,
-                  backgroundSize: "20px 20px",
-                }}
-              />
-            </div>
-
-            {/* Border */}
-            <div
-              style={{
-                width: "500px",
-                height: "0px",
-                borderBottom: "1px solid rgba(0, 0, 0, 0.1)",
-                opacity: 1,
-              }}
-            />
-
-            {/* Buttons Row */}
-            <div
-              className="flex items-center justify-end gap-3"
-              style={{
-                width: "500px",
-                height: "37.040000915527344px",
-                paddingRight: "20px",
-                paddingLeft: "20px",
-                gap: "10px",
-                opacity: 1,
-              }}
-            >
-              {/* Download Button */}
-              <button
-                onClick={handleDownloadQR}
-                className="flex items-center gap-4 text-white rounded"
-                style={{
-                  width: "107px",
-                  height: "37.040000915527344px",
-                  gap: "16px",
-                  background: "#1F2A44",
-                  borderRadius: "6px",
-                  padding: "8.52px 10px",
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  className="w-4 h-4"
-                >
-                  <path
-                    d="M8 1V11M8 11L4 7M8 11L12 7M1 15H15"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span className="text-sm font-medium">Download</span>
-              </button>
-
-              {/* Cancel Button */}
-              <button
-                onClick={closeQRModal}
-                className="flex items-center justify-center border rounded"
-                style={{
-                  width: "66px",
-                  height: "37.040000915527344px",
-                  borderRadius: "6px",
-                  paddingTop: "8.52px",
-                  paddingRight: "10px",
-                  paddingBottom: "8.52px",
-                  paddingLeft: "10px",
-                  gap: "6px",
-                  background: "#FBFAFA",
-                  border: "1px solid #CED4DA",
-                  color: "#000",
-                }}
-              >
-                <span className="text-sm font-medium">Cancel</span>
-              </button>
-            </div>
+          <div className="flex gap-4 flex-end justify-end border-t p-5">
+            <button onClick={handleDownloadQR} className="h-[37px] text-4 p-2 flex items-center text-white bg-primary rounded-[4px]">download</button>
+            <button onClick={closeQRModal} className="bg-[#FBFAFA] h-[37px] text-4 p-2 rounded-[6px]">cancel</button>
+          </div>
+         </div>
           </div>
         </div>
       )}
