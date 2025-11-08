@@ -12,6 +12,7 @@ export class LaundryRequestController {
     page?: string;
     limit?: string;
     search?: string;
+    status?: string;
     priority?: string;
     roomName?: string;
     service?: string;
@@ -36,9 +37,10 @@ export class LaundryRequestController {
         ];
       }
 
+      if (query.status) filter.status = query.status;
       if (query.priority) filter.priority = query.priority;
       if (query.roomName) filter.roomName = query.roomName;
-      if (query.service) filter.services = query.service; // match any of the services
+      if (query.service) filter.services = { $in: [query.service] }; // match any of the services
 
       const items = await LaundryRequest.find(filter)
         .sort({ createdAt: -1 })
@@ -92,7 +94,8 @@ export class LaundryRequestController {
     services: string[];
     piece: number;
     pickup: Date;
-    priority?: "low" | "medium" | "high";
+    status?: "new" | "accepted" | "completed" | "no-show" | "canceled";
+    priority?: "low" | "medium" | "urgent";
     notes?: string;
     assigne?: {
       name: string;
@@ -115,6 +118,7 @@ export class LaundryRequestController {
         services: data.services,
         piece: data.piece,
         pickup: data.pickup,
+        status: data.status || 'new',
         priority: data.priority || 'medium',
         notes: data.notes?.trim(),
         assigne: data.assigne,
@@ -137,7 +141,8 @@ export class LaundryRequestController {
     services?: string[];
     piece?: number;
     pickup?: Date;
-    priority?: "low" | "medium" | "high";
+    status?: "new" | "accepted" | "completed" | "no-show" | "canceled";
+    priority?: "low" | "medium" | "urgent";
     notes?: string;
     assigne?: {
       name?: string;
@@ -156,6 +161,7 @@ export class LaundryRequestController {
       if (data.services !== undefined) request.services = data.services;
       if (data.piece !== undefined) request.piece = data.piece;
       if (data.pickup !== undefined) request.pickup = data.pickup;
+      if (data.status !== undefined) request.status = data.status;
       if (data.priority !== undefined) request.priority = data.priority;
       if (data.notes !== undefined) request.notes = data.notes?.trim();
       if (data.assigne !== undefined) {
@@ -191,6 +197,37 @@ export class LaundryRequestController {
   }
 
   /**
+   * Update laundry request status
+   */
+  static async updateRequestStatus(requestId: string, status: "new" | "accepted" | "completed" | "no-show" | "canceled") {
+    try {
+      await connectDB();
+
+      const request = await LaundryRequest.findByIdAndUpdate(
+        requestId,
+        { status },
+        { new: true }
+      );
+
+      if (!request) {
+        return NextResponse.json(
+          { success: false, error: 'Laundry request not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          request: request.toJSON(),
+        },
+      });
+    } catch (error) {
+      return handleApiError(error, 'Failed to update laundry request status');
+    }
+  }
+
+  /**
    * Assign staff to a laundry request
    */
   static async assignStaff(requestId: string, assigne: { name: string; staffId: string; profilePic?: string }) {
@@ -199,7 +236,10 @@ export class LaundryRequestController {
 
       const request = await LaundryRequest.findByIdAndUpdate(
         requestId,
-        { assigne },
+        { 
+          assigne,
+          status: 'accepted' // Auto-update status to accepted when assigned
+        },
         { new: true }
       );
 

@@ -9,6 +9,7 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
     page: searchParams.get('page') || undefined,
     limit: searchParams.get('limit') || undefined,
     search: searchParams.get('search') || undefined,
+    status: searchParams.get('status') || undefined,
     priority: searchParams.get('priority') || undefined,
     roomName: searchParams.get('roomName') || undefined,        
     service: searchParams.get('service') || undefined,

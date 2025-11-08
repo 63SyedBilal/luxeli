@@ -7,7 +7,8 @@ export interface ILaundryRequest extends Document {
   services: string[];
   piece: number;
   pickup: Date;
-  priority: "low" | "medium" | "high";
+  status: "new" | "accepted" | "completed" | "no-show" | "canceled";
+  priority: "low" | "medium" | "urgent";
   notes?: string;
   assigne?: {
     name: string;
@@ -32,7 +33,12 @@ const LaundryRequestSchema: Schema = new Schema(
     ],
     piece: { type: Number, required: true },
     pickup: { type: Date, required: true },
-    priority: { type: String, enum: ["low", "medium", "high"], default: "medium" },
+    status: {
+      type: String,
+      enum: ["new", "accepted", "completed", "no-show", "canceled"],
+      default: "new",
+    },
+    priority: { type: String, enum: ["low", "medium", "urgent"], default: "medium" },
     notes: { type: String },
     assigne: {
       name: { type: String },
