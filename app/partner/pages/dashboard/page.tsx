@@ -8,11 +8,136 @@ import { Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useState, useEffect } from "react"
 import { RiArrowDownSLine } from "react-icons/ri"
 import { useRouter } from "next/navigation"
+import { getAuthToken } from "@/lib/auth-utils"
 
 export default function DashboardPage() {
   const router = useRouter()
   const [activeSection, setActiveSection] = useState("subscriptions")
   const [selectedService, setSelectedService] = useState("Housekeeping")
+  const [roomStats, setRoomStats] = useState({
+    totalRooms: 0,
+    emptyRooms: 0,
+    fullRooms: 0
+  })
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true)
+  const [memberCount, setMemberCount] = useState(0)
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true)
+  const [staffCount, setStaffCount] = useState(0)
+  const [isLoadingStaff, setIsLoadingStaff] = useState(true)
+
+  // Fetch room stats from API
+  const fetchRoomStats = async () => {
+    try {
+      setIsLoadingRooms(true)
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        setIsLoadingRooms(false)
+        return
+      }
+
+      // Fetch all rooms with a high limit to get accurate counts
+      const response = await fetch(`/api/partner/rooms?page=1&limit=10000`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        const totalRooms = result.total || 0
+        const rooms = result.items || []
+        
+        // Calculate empty and full rooms
+        const emptyRooms = rooms.filter((room: any) => room.roomStatus === 'empty').length
+        const fullRooms = rooms.filter((room: any) => room.roomStatus === 'full').length
+
+        setRoomStats({
+          totalRooms,
+          emptyRooms,
+          fullRooms
+        })
+      } else {
+        console.error('Failed to fetch rooms')
+      }
+    } catch (error) {
+      console.error('Error fetching room stats:', error)
+    } finally {
+      setIsLoadingRooms(false)
+    }
+  }
+
+  // Fetch member count from API
+  const fetchMemberCount = async () => {
+    try {
+      setIsLoadingMembers(true)
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        setIsLoadingMembers(false)
+        return
+      }
+
+      // Fetch members with limit 1 just to get total count
+      const response = await fetch(`/api/partner/members?page=1&limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data?.pagination) {
+          setMemberCount(result.data.pagination.total || 0)
+        }
+      } else {
+        console.error('Failed to fetch members')
+      }
+    } catch (error) {
+      console.error('Error fetching member count:', error)
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }
+
+  // Fetch staff count from API
+  const fetchStaffCount = async () => {
+    try {
+      setIsLoadingStaff(true)
+      const token = getAuthToken()
+      if (!token) {
+        console.error('No auth token found')
+        setIsLoadingStaff(false)
+        return
+      }
+
+      // Fetch staff with limit 1 just to get total count
+      const response = await fetch(`/api/partner/staff?page=1&limit=1`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data?.pagination) {
+          setStaffCount(result.data.pagination.total || 0)
+        }
+      } else {
+        console.error('Failed to fetch staff')
+      }
+    } catch (error) {
+      console.error('Error fetching staff count:', error)
+    } finally {
+      setIsLoadingStaff(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRoomStats()
+    fetchMemberCount()
+    fetchStaffCount()
+  }, [])
 
   // Scroll detection to update active section
   useEffect(() => {
@@ -198,10 +323,11 @@ export default function DashboardPage() {
             </div>
           }
           label="Total Room" 
-          value="65" 
+          value={roomStats.totalRooms.toString()} 
           change="+2%"
           changeType="positive"
           changeLabel="vs last week" 
+          isLoading={isLoadingRooms}
         />
         <StatCard
           icon={
@@ -217,10 +343,11 @@ export default function DashboardPage() {
             </div>
           }
           label="Empty rooms" 
-          value="42"
+          value={roomStats.emptyRooms.toString()}
           change="+2%"
           changeType="positive"
           changeLabel="vs last week" 
+          isLoading={isLoadingRooms}
         />
         <StatCard
           icon={
@@ -236,10 +363,11 @@ export default function DashboardPage() {
             </div>
           }
           label="Full rooms" 
-          value="23" 
+          value={roomStats.fullRooms.toString()} 
           change="+2%" 
           changeType="positive" 
           changeLabel="vs last week" 
+          isLoading={isLoadingRooms}
         />
         <StatCard
           icon={
@@ -255,10 +383,11 @@ export default function DashboardPage() {
             </div>
           }
           label="Members" 
-          value="12"
+          value={memberCount.toString()}
           change="+2%"
           changeType="positive"
           changeLabel="vs last week" 
+          isLoading={isLoadingMembers}
         />
         <StatCard
           icon={
@@ -274,10 +403,11 @@ export default function DashboardPage() {
             </div>
           }
           label="Staffs" 
-          value="33" 
+          value={staffCount.toString()} 
           change="+2%"
           changeType="positive"
           changeLabel="vs last week" 
+          isLoading={isLoadingStaff}
         />
       </div>
 

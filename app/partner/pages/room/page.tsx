@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { FaDownload } from "react-icons/fa"
 import {
   RiMoreLine,
   RiDeleteBinLine,
@@ -1510,7 +1511,7 @@ export default function RoomPage() {
          <div className="w-full">
 
           <div className="flex gap-4 flex-end justify-end border-t p-5">
-            <button onClick={handleDownloadQR} className="h-[37px] text-4 p-2 flex items-center text-white bg-primary rounded-[4px]">download</button>
+            <button onClick={handleDownloadQR} className="h-[37px] text-4 p-2 flex items-center text-white bg-primary rounded-[4px]"> <FaReact size={60} color="white" />download</button>
             <button onClick={closeQRModal} className="bg-[#FBFAFA] h-[37px] text-4 p-2 rounded-[6px]">cancel</button>
           </div>
          </div>
