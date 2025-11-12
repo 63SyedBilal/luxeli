@@ -472,19 +472,19 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="space-y-6 px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Revenue Chart - Takes 2 columns */}
-          <div className="lg:col-span-2">
-            <PartnerRevenueChart />
-          </div>
+        {/* Revenue Chart - Takes 2 columns */}
+        <div className="lg:col-span-2">
+          <PartnerRevenueChart />
+        </div>
 
-          {/* Requests Card */}
-          <div className="flex flex-col w-full max-w-[450px] justify-between">
+        {/* Requests Card */}
+        <div className="flex flex-col w-full max-w-[450px] justify-between">
           {/* Header */}
           <div className="h-16 flex items-center py-3 px-4 bg-[#FCFCFC] border border-[#E9EAEB] rounded-t-xl">
             <h3 className="text-sm font-semibold text-[#212121]">Requests</h3>
           </div>
           {/* Content */}
-          <div className="h-[280px] flex flex-col p-6 pt-12 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4">
+          <div className="h-[280px] flex flex-col p-6 pt-12 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4 " style={{borderTopLeftRadius : '14px', borderTopRightRadius: "14px"}}>
             <div className="text-center items-center mb-8">
               {isLoadingRequestStats ? (
                 <div className="flex items-center justify-center h-full">
@@ -512,133 +512,131 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  <svg className="w-4/5 h-full" viewBox="0 0 400 180">
-                    {/* Background semicircle */}
-                    <path
-                      d="M 50 160 A 150 150 0 0 1 350 160"
-                      fill="none"
-                      stroke="#E5E7EB"
-                      strokeWidth="20"
-                    />
+              <svg className="w-4/5 h-full" viewBox="0 0 400 180">
+                {/* Background semicircle */}
+                <path
+                  d="M 50 160 A 150 150 0 0 1 350 160"
+                  fill="none"
+                  stroke="#E5E7EB"
+                  strokeWidth="20"
+                />
                     {/* Accepted segment - from left to right */}
                     {requestStats.accepted > 0 && (() => {
                       const totalCircumference = 471.2 // Full semicircle circumference
                       const acceptedPercentage = requestStats.accepted / requestStats.total
                       const acceptedLength = totalCircumference * acceptedPercentage
                       return (
-                        <path
-                          d="M 50 160 A 150 150 0 0 1 350 160"
-                          fill="none"
-                          stroke="#10B981"
-                          strokeWidth="20"
+                <path
+                  d="M 50 160 A 150 150 0 0 1 350 160"
+                  fill="none"
+                  stroke="#10B981"
+                  strokeWidth="20"
                           strokeDasharray={`${acceptedLength} ${totalCircumference}`}
                           strokeDashoffset="0"
-                          strokeLinecap="round"
-                          className="cursor-pointer hover:opacity-80 transition-opacity"
-                          style={{ pointerEvents: 'stroke' }}
-                          onMouseEnter={(e) => {
-                            const tooltip = document.getElementById('chart-tooltip');
-                            const tooltipText = document.getElementById('tooltip-text');
-                            if (tooltip && tooltipText) {
+                  strokeLinecap="round"
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  style={{ pointerEvents: 'stroke' }}
+                  onMouseEnter={(e) => {
+                    const tooltip = document.getElementById('chart-tooltip');
+                    const tooltipText = document.getElementById('tooltip-text');
+                    if (tooltip && tooltipText) {
                               tooltipText.textContent = requestStats.accepted.toString();
-                              tooltip.style.display = 'block';
-                              const chartContainer = e.currentTarget.closest('.relative');
-                              if (chartContainer) {
-                                const rect = chartContainer.getBoundingClientRect();
-                                const x = e.clientX - rect.left - 17.5;
-                                const y = e.clientY - rect.top - 17.5;
-                                tooltip.style.left = x + 'px';
-                                tooltip.style.top = y + 'px';
-                              }
-                            }
-                          }}
-                          onMouseLeave={() => {
-                            const tooltip = document.getElementById('chart-tooltip');
-                            if (tooltip) {
-                              tooltip.style.display = 'none';
-                            }
-                          }}
-                        />
+                      tooltip.style.display = 'block';
+                      const chartContainer = e.currentTarget.closest('.relative');
+                      if (chartContainer) {
+                        const rect = chartContainer.getBoundingClientRect();
+                        const x = e.clientX - rect.left - 17.5;
+                        const y = e.clientY - rect.top - 17.5;
+                        tooltip.style.left = x + 'px';
+                        tooltip.style.top = y + 'px';
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    const tooltip = document.getElementById('chart-tooltip');
+                    if (tooltip) {
+                      tooltip.style.display = 'none';
+                    }
+                  }}
+                />
                       )
                     })()}
                     {/* Canceled segment - from right to left */}
                     {requestStats.canceled > 0 && (() => {
                       const totalCircumference = 471.2
-                      const acceptedPercentage = requestStats.accepted / requestStats.total
                       const canceledPercentage = requestStats.canceled / requestStats.total
-                      const acceptedLength = totalCircumference * acceptedPercentage
                       const canceledLength = totalCircumference * canceledPercentage
-                      // Start from right side (end of path): position at the end and draw backwards
-                      // The offset positions the segment at the right end
+                      // Position at the right end (end of path) and draw backwards
+                      // Offset positions the segment starting from the right end
                       const canceledOffset = -(totalCircumference - canceledLength)
                       return (
-                        <path
-                          d="M 50 160 A 150 150 0 0 1 350 160"
-                          fill="none"
+                <path
+                  d="M 50 160 A 150 150 0 0 1 350 160"
+                  fill="none"
                           stroke="rgba(255, 13, 13, 0.5)"
-                          strokeWidth="20"
+                  strokeWidth="20"
                           strokeDasharray={`${canceledLength} ${totalCircumference}`}
                           strokeDashoffset={canceledOffset}
-                          strokeLinecap="round"
-                          className="cursor-pointer hover:opacity-80 transition-opacity"
-                          style={{ pointerEvents: 'stroke' }}
-                          onMouseEnter={(e) => {
-                            const tooltip = document.getElementById('chart-tooltip');
-                            const tooltipText = document.getElementById('tooltip-text');
-                            if (tooltip && tooltipText) {
+                  strokeLinecap="round"
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                  style={{ pointerEvents: 'stroke' }}
+                  onMouseEnter={(e) => {
+                    const tooltip = document.getElementById('chart-tooltip');
+                    const tooltipText = document.getElementById('tooltip-text');
+                    if (tooltip && tooltipText) {
                               tooltipText.textContent = requestStats.canceled.toString();
-                              tooltip.style.display = 'block';
-                              const chartContainer = e.currentTarget.closest('.relative');
-                              if (chartContainer) {
-                                const rect = chartContainer.getBoundingClientRect();
-                                const x = e.clientX - rect.left - 17.5;
-                                const y = e.clientY - rect.top - 17.5;
-                                tooltip.style.left = x + 'px';
-                                tooltip.style.top = y + 'px';
-                              }
-                            }
-                          }}
-                          onMouseLeave={() => {
-                            const tooltip = document.getElementById('chart-tooltip');
-                            if (tooltip) {
-                              tooltip.style.display = 'none';
-                            }
-                          }}
-                        />
+                      tooltip.style.display = 'block';
+                      const chartContainer = e.currentTarget.closest('.relative');
+                      if (chartContainer) {
+                        const rect = chartContainer.getBoundingClientRect();
+                        const x = e.clientX - rect.left - 17.5;
+                        const y = e.clientY - rect.top - 17.5;
+                        tooltip.style.left = x + 'px';
+                        tooltip.style.top = y + 'px';
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    const tooltip = document.getElementById('chart-tooltip');
+                    if (tooltip) {
+                      tooltip.style.display = 'none';
+                    }
+                  }}
+                />
                       )
                     })()}
-                    
-                    {/* Legend with colored circles */}
-                    <circle cx="90" cy="130" r="5" fill="#10B981" />
-                    <text
-                      x="100"
-                      y="135"
-                      textAnchor="start"
-                      className="text-medium font-medium fill-[#000000]"
-                    >
-                      Accepted
-                    </text>
+                
+                {/* Legend with colored circles */}
+                <circle cx="90" cy="130" r="5" fill="#10B981" />
+                <text
+                  x="100"
+                  y="135"
+                  textAnchor="start"
+                  className="text-medium font-medium fill-[#000000]"
+                >
+                  Accepted
+                </text>
 
                     <circle cx="230" cy="130" r="5" fill="rgba(255, 13, 13, 0.5)" />
-                    <text
-                      x="240"
-                      y="135"
-                      textAnchor="start"
-                      className="text-medium font-medium fill-[#000000]"
-                    >
-                      Canceled
-                    </text>
-                  </svg>
-                  
-                  {/* Hover Tooltip */}
-                  <div
-                    id="chart-tooltip"
+                <text
+                  x="240"
+                  y="135"
+                  textAnchor="start"
+                  className="text-medium font-medium fill-[#000000]"
+                >
+                  Canceled
+                </text>
+              </svg>
+              
+              {/* Hover Tooltip */}
+              <div
+                id="chart-tooltip"
                     className="absolute hidden pointer-events-none z-10 w-[35px] h-[35px] bg-white rounded-full shadow-md border border-[#E5E7EB] flex items-center justify-center text-center"
                   >
                     <span id="tooltip-text" className="text-sm font-semibold text-black leading-none flex items-center justify-center w-full h-full">
                       {requestStats.accepted}
-                    </span>
-                  </div>
+                </span>
+              </div>
                 </>
               )}
             </div>
@@ -794,8 +792,8 @@ export default function DashboardPage() {
                     : "bg-white text-[rgba(33,33,33,0.60)] hover:bg-muted/80"
                 }`}
               >
-                Week
-              </button>
+            Week
+          </button>
               <button 
                 onClick={() => setServiceTimePeriod("month")}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-r border-[#CED4DA] ${
@@ -804,8 +802,8 @@ export default function DashboardPage() {
                     : "bg-white text-[rgba(33,33,33,0.60)] hover:bg-muted/80"
                 }`}
               >
-                Month
-              </button>
+            Month
+          </button>
               <button 
                 onClick={() => setServiceTimePeriod("day")}
                 className={`px-4 py-2 text-sm font-medium transition-colors border-r border-[#CED4DA] ${
@@ -814,8 +812,8 @@ export default function DashboardPage() {
                     : "bg-white text-[rgba(33,33,33,0.60)] hover:bg-muted/80"
                 }`}
               >
-                Day
-              </button>
+            Day
+          </button>
               <button 
                 onClick={() => setServiceTimePeriod("custom")}
                 className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 rounded-r-md border-r border-[#CED4DA] ${
@@ -824,10 +822,10 @@ export default function DashboardPage() {
                     : "bg-white text-[rgba(33,33,33,0.60)] hover:bg-muted/80"
                 }`}
               >
-                <PublicIcon src="/assets/icons/calendar.svg" alt="Calendar" width={16} height={16} />
-                Dates range
-              </button>
-            </div>
+            <PublicIcon src="/assets/icons/calendar.svg" alt="Calendar" width={16} height={16} />
+            Dates range
+          </button>
+        </div>
             {/* Priority dropdown for all services */}
             <div className="relative inline-block">
               <select className="appearance-none focus:outline-none focus:ring-2 focus:ring-primary/30 py-[7.52px] px-3 pr-8 rounded border border-[#CED4DA] bg-white text-[rgba(33,33,33,0.60)] text-[13px] font-normal leading-[19.5px]">
@@ -891,15 +889,15 @@ export default function DashboardPage() {
               const periodLabel = serviceStats.periodLabel || "last week"
               
               return (
-                <StatCard 
-                  key={index}
-                  label={label} 
-                  value={value} 
+            <StatCard 
+              key={index}
+              label={label} 
+              value={value} 
                   change={changeValue}
                   changeType={isPositive ? "positive" : "negative"} 
                   changeLabel={`vs ${periodLabel}`}
-                  showHeadingBorder={true}
-                />
+              showHeadingBorder={true}
+            />
               )
             })
           )}
@@ -915,7 +913,7 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-[#212121]">Requests Activity</h3>
             </div>
             {/* Content */}
-              <div className="h-[280px] p-3 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4 relative">
+              <div className="h-[280px] p-3 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4 relative" style={{borderTopLeftRadius : '14px', borderTopRightRadius: "14px"}}>
               {/* Chart container */}
               <div className="w-full h-full relative">
                 {/* Y-axis label */}
@@ -931,7 +929,7 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-500">Loading...</p>
                       </div>
                     ) : serviceTimeSeries.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%" style={{ outline: 'none' }}>
+                    <ResponsiveContainer width="100%" height="100%" style={{ outline: 'none' }}>
                         <LineChart data={serviceTimeSeries.map(item => ({
                           month: item.date,
                           requests: item.requests,
@@ -1077,10 +1075,10 @@ export default function DashboardPage() {
                 
                 {/* Legend - positioned at top right */}
                 {!isLoadingServiceStats && serviceTimeSeries.length > 0 && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#2563EB]"></div>
-                    <span className="text-sm text-[#6B7280]">Requests</span>
-                  </div>
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#2563EB]"></div>
+                  <span className="text-sm text-[#6B7280]">Requests</span>
+                </div>
                 )}
               </div>
             </div>
@@ -1095,7 +1093,7 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-semibold text-[#212121]">{servicesData[selectedService as keyof typeof servicesData].verticalCardTitle}</h3>
           </div>
           {/* Content */}
-              <div className="h-[280px] p-4 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4 overflow-y-auto">
+              <div className="h-[280px] p-4 bg-white border border-[#E9EAEB] rounded-b-xl -mt-4 overflow-y-auto" style={{borderTopLeftRadius : '14px', borderTopRightRadius: "14px"}}>
             <div className="space-y-0">
                   {servicesData[selectedService as keyof typeof servicesData].verticalCardItems.map((item, index) => (
                 <div key={index}>

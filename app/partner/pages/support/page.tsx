@@ -560,7 +560,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -573,7 +572,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -586,7 +584,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -599,7 +596,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -612,7 +608,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -625,7 +620,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -952,7 +946,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -965,7 +958,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -978,7 +970,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -991,7 +982,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -1004,7 +994,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -1017,7 +1006,6 @@ export default function SupportPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 

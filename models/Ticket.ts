@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITicket extends Document {
+  partnerId: string; // Reference to Partner
   ticketId: string;
   title: string;
   priority: "low" | "medium" | "urgent";
@@ -17,9 +18,14 @@ export interface ITicket extends Document {
 
 const ticketSchema = new Schema<ITicket>(
   {
+    partnerId: {
+      type: String,
+      required: true,
+      index: true,
+      trim: true,
+    },
     ticketId: {
       type: String,
-      unique: true,
       default: () => `TCKT-${Date.now()}`, // auto-generate unique ticketId
     },
     title: {
@@ -52,6 +58,10 @@ const ticketSchema = new Schema<ITicket>(
   { timestamps: true } // auto adds createdAt and updatedAt
 );
 
+// Indexes for better query performance
+ticketSchema.index({ partnerId: 1 });
+ticketSchema.index({ partnerId: 1, ticketId: 1 }, { unique: true }); // Unique ticketId per partner
+
 // 🕒 Update "updatedAt" whenever the document is modified
 ticketSchema.pre("save", function (next) {
   if (this.isModified()) {
@@ -68,6 +78,7 @@ if (process.env.NODE_ENV !== 'production' && mongoose.models.Ticket) {
 export const Ticket = mongoose.model<ITicket>("Ticket", ticketSchema);
 
 export default Ticket;
+
 
 
 

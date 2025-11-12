@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+ import { useState, useEffect } from "react"
 import { getAuthToken } from "@/lib/auth-utils"
 import {
   RiMoreLine,
@@ -878,7 +878,6 @@ export default function TeamPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -891,7 +890,6 @@ export default function TeamPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -904,7 +902,6 @@ export default function TeamPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -918,7 +915,6 @@ export default function TeamPage() {
                 {activeTab === 'staff' && (
                   <th className="px-4 py-4 text-left">
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      <SortArrows sortDirection="none" />
                       <span style={{ 
                         color: "#000", 
                         fontSize: "12px", 
@@ -932,7 +928,6 @@ export default function TeamPage() {
                 )}
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
@@ -945,7 +940,6 @@ export default function TeamPage() {
                 </th>
                 <th className="px-4 py-4 text-left">
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <SortArrows sortDirection="none" />
                     <span style={{ 
                       color: "#000", 
                       fontSize: "12px", 
