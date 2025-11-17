@@ -10,7 +10,7 @@ interface AuthContextType {
   token: string | null
   logout: () => void
   loading: boolean
-  userType: 'superadmin' | 'member' | 'partner' | null
+  userType: 'superadmin' | 'member' | 'partner' | 'partnermember' | 'partnerstaff' | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [userType, setUserType] = useState<'superadmin' | 'member' | 'partner' | null>(null)
+  const [userType, setUserType] = useState<'superadmin' | 'member' | 'partner' | 'partnermember' | 'partnerstaff' | null>(null)
   const router = useRouter()
 
   useEffect(() => {

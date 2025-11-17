@@ -100,6 +100,10 @@ export default function LoginPage() {
         router.push("/superadmin/pages/dashboard") // Members also go to superadmin dashboard for now
       } else if (data.userType === 'partner') {
         router.push("/partner/pages/dashboard") // Partners go to partner dashboard
+      } else if (data.userType === 'partnermember') {
+        router.push("/partner/pages/dashboard") // Partner members go to partner dashboard
+      } else if (data.userType === 'partnerstaff') {
+        router.push("/partner/pages/dashboard") // Partner staff go to partner dashboard
       }
     } catch (error) {
       console.error("Login error:", error)
