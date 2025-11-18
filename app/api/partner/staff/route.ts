@@ -30,16 +30,17 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
       staffName,
       email,
       phoneNumber,
+      role,
       staffImage,
       username,
       password,
       status,
     } = body;
 
-    // Validate required fields (role is now auto-set)
-    if (!staffName || !email || !phoneNumber || !username || !password) {
+    // Validate required fields
+    if (!staffName || !email || !phoneNumber || !role || !username || !password) {
       return NextResponse.json(
-        { success: false, error: 'staffName, email, phoneNumber, username, and password are required' },
+        { success: false, error: 'staffName, email, phoneNumber, role, username, and password are required' },
         { status: 400 }
       );
     }
@@ -74,6 +75,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest) => {
       staffName: staffName.trim(),
       email: email.toLowerCase().trim(),
       phoneNumber: phoneNumber.trim(),
+      role: role.trim(),
       staffImage: staffImage || '',
       username: username.trim(),
       password,

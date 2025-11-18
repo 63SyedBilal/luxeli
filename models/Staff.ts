@@ -41,8 +41,7 @@ const StaffSchema = new Schema<IStaff>(
     },
     role: {
       type: String,
-      default: "partnerstaff",
-      enum: ["partnerstaff"],
+      required: true,
       trim: true,
     },
     staffImage: {

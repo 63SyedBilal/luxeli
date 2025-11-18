@@ -102,7 +102,7 @@ export class StaffController {
     staffName: string;
     email: string;
     phoneNumber: string;
-    role?: string;
+    role: string;
     staffImage?: string;
     username: string;
     password: string;
@@ -133,7 +133,7 @@ export class StaffController {
         staffName: data.staffName.trim(),
         email: data.email.toLowerCase().trim(),
         phoneNumber: data.phoneNumber.trim(),
-        role: "partnerstaff", // Automatically set role as partnerstaff
+        role: data.role.trim(), // Role comes from UI
         staffImage: data.staffImage || '',
         username: data.username.trim(),
         password: data.password, // Don't hash here - model will hash it
@@ -215,8 +215,7 @@ export class StaffController {
       if (data.staffName) staff.staffName = data.staffName.trim();
       if (data.email) staff.email = data.email.toLowerCase().trim();
       if (data.phoneNumber) staff.phoneNumber = data.phoneNumber.trim();
-      // Ensure role always remains "partnerstaff" for partner staff
-      staff.role = "partnerstaff";
+      if (data.role) staff.role = data.role.trim(); // Role can be updated from UI
       if (data.staffImage !== undefined) staff.staffImage = data.staffImage;
       if (data.username) staff.username = data.username.trim();
       // Update status if provided (must be 'active' or 'disabled')

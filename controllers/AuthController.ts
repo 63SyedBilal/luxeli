@@ -211,7 +211,7 @@ export class AuthController {
             const token = generateToken({
               userId: String(partnerStaff._id),
               email: partnerStaff.email,
-              role: partnerStaff.role || 'partnerstaff',
+              role: partnerStaff.role, // Use actual role from database
               userType: 'partnerstaff',
               partnerId: partnerStaff.partnerId,
             });
@@ -307,7 +307,7 @@ export class AuthController {
             const token = generateToken({
               userId: String(partnerStaffByEmail._id),
               email: partnerStaffByEmail.email,
-              role: partnerStaffByEmail.role || 'partnerstaff',
+              role: partnerStaffByEmail.role, // Use actual role from database
               userType: 'partnerstaff',
               partnerId: partnerStaffByEmail.partnerId,
             });

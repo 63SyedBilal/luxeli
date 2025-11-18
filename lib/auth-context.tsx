@@ -31,8 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUser(storedUser)
-      setUserType(storedUser.role)
+      // Get userType from stored user data (set during login) or fallback to role
+      const userTypeValue = (storedUser as any).userType || storedUser.role
+      setUserType(userTypeValue)
       setIsAuthenticated(true)
+      
+      // Debug logging
+      if (userTypeValue === 'member') {
+        console.log('Member logged in, permissions:', (storedUser as any).permissions)
+      }
     }
 
     setLoading(false)
